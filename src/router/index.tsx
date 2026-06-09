@@ -40,7 +40,7 @@ const router = createBrowserRouter([
         element: <EffectAnalysisPage />,
       },
       {
-        path: '/activity/analysis/:id',
+        path: '/activity/:id/analysis',
         element: <EffectAnalysisPage />,
       },
     ],

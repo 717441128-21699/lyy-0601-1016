@@ -16,7 +16,8 @@ import {
   Col,
   message,
   Dropdown,
-  MenuProps
+  MenuProps,
+  Empty
 } from 'antd';
 import {
   TrendingUp,
@@ -107,6 +108,12 @@ const EffectAnalysisPage = () => {
   }, [fetchActivities]);
 
   useEffect(() => {
+    if (id) {
+      setSelectedActivity(id);
+    }
+  }, [id]);
+
+  useEffect(() => {
     if (selectedActivity) {
       const dateRangeStr: [string, string] = [
         dateRange[0].format('YYYY-MM-DD'),
@@ -123,12 +130,6 @@ const EffectAnalysisPage = () => {
   useEffect(() => {
     document.title = '效果分析 - 智慧零售促销管理平台';
   }, []);
-
-  useEffect(() => {
-    if (id) {
-      setSelectedActivity(id);
-    }
-  }, [id]);
 
   const handleRefresh = () => {
     if (selectedActivity) {
@@ -417,6 +418,7 @@ const EffectAnalysisPage = () => {
               onClick={handleRefresh}
               loading={loading.overview || loading.daily || loading.region || loading.detail}
               className="rounded-full"
+              disabled={!selectedActivity}
             >
               刷新数据
             </Button>
@@ -426,6 +428,7 @@ const EffectAnalysisPage = () => {
                 size="large"
                 icon={<Download size={18} />}
                 className="rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 border-0"
+                disabled={!selectedActivity}
               >
                 导出复盘明细
               </Button>
@@ -469,6 +472,7 @@ const EffectAnalysisPage = () => {
                 }
               }}
               className="w-64"
+              disabled={!selectedActivity}
             />
           </div>
 
@@ -482,6 +486,7 @@ const EffectAnalysisPage = () => {
               onChange={setSelectedRegions}
               maxTagCount={3}
               allowClear
+              disabled={!selectedActivity}
             >
               {regionOptions.map(option => (
                 <Option key={option.value} value={option.value}>
@@ -493,7 +498,20 @@ const EffectAnalysisPage = () => {
         </div>
       </Card>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} className="analysis-tabs">
+      {!selectedActivity ? (
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <Empty
+            description={
+              <div className="text-center py-8">
+                <BarChart3 size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 mb-2">请先选择一个活动查看效果分析</p>
+                <p className="text-xs text-gray-400">从上方下拉框选择活动，或从活动列表点击"效果分析"入口</p>
+              </div>
+            }
+          />
+        </Card>
+      ) : (
+        <Tabs activeKey={activeTab} onChange={setActiveTab} className="analysis-tabs">
         <TabPane 
           tab={
             <span className="flex items-center gap-2">
@@ -812,6 +830,7 @@ const EffectAnalysisPage = () => {
           </Spin>
         </TabPane>
       </Tabs>
+      )}
 
       <Modal
         title="导出设置"
