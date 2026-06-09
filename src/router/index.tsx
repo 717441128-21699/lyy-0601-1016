@@ -1,0 +1,50 @@
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import MainLayout from '@/components/layout/MainLayout';
+import ActivityListPage from '@/pages/activity-list';
+import ActivityEditPage from '@/pages/activity-edit';
+import ProductSelectPage from '@/pages/product-select';
+import StoreScopePage from '@/pages/store-scope';
+import EffectAnalysisPage from '@/pages/effect-analysis';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <MainLayout />,
+    children: [
+      {
+        path: '/',
+        element: <Navigate to="/activity/list" replace />,
+      },
+      {
+        path: '/activity/list',
+        element: <ActivityListPage />,
+      },
+      {
+        path: '/activity/create',
+        element: <ActivityEditPage />,
+      },
+      {
+        path: '/activity/edit/:id',
+        element: <ActivityEditPage />,
+      },
+      {
+        path: '/activity/products/:id',
+        element: <ProductSelectPage />,
+      },
+      {
+        path: '/activity/stores/:id',
+        element: <StoreScopePage />,
+      },
+      {
+        path: '/activity/analysis',
+        element: <EffectAnalysisPage />,
+      },
+      {
+        path: '/activity/analysis/:id',
+        element: <EffectAnalysisPage />,
+      },
+    ],
+  },
+]);
+
+export default router;
