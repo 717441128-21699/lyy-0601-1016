@@ -125,7 +125,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       name: data.name || '',
       description: data.description || '',
       type: data.type || 'full_reduction',
-      status: 'draft',
+      status: data.status || 'draft',
       startTime: data.startTime || dayjs().format('YYYY-MM-DD HH:mm:ss'),
       endTime: data.endTime || dayjs().add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
       priority: data.priority || 5,
