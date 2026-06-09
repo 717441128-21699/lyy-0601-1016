@@ -10,6 +10,7 @@ interface ActivityState {
   loading: boolean;
   total: number;
   selectedIds: string[];
+  allModifiedActivities: Map<string, Activity>;
   
   fetchList: (filter?: ActivityFilter) => Promise<void>;
   fetchDetail: (id: string) => Promise<void>;
@@ -36,16 +37,17 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   loading: false,
   total: 0,
   selectedIds: [],
+  allModifiedActivities: new Map<string, Activity>(),
 
   fetchList: async (filter) => {
     set({ loading: true });
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const currentFilter = { ...get().filter, ...filter };
-    const currentList = get().list;
+    const modifiedMap = get().allModifiedActivities;
     
     const mockMap = new Map(mockActivities.map(item => [item.id, item]));
-    const storeMap = new Map(currentList.map(item => [item.id, item]));
+    const storeMap = new Map(modifiedMap);
     
     const allData: Activity[] = [];
     
@@ -140,10 +142,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       createdBy: '当前用户',
     };
     
-    set(state => ({
-      list: [newActivity, ...state.list],
-      total: state.total + 1,
-    }));
+    set(state => {
+      const newModifiedMap = new Map(state.allModifiedActivities);
+      newModifiedMap.set(newActivity.id, newActivity);
+      
+      return {
+        list: [newActivity, ...state.list],
+        total: state.total + 1,
+        allModifiedActivities: newModifiedMap,
+      };
+    });
     
     return newActivity.id;
   },
@@ -151,34 +159,56 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   updateActivity: async (id, data) => {
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    set(state => ({
-      list: state.list.map(item => 
+    set(state => {
+      const updatedAt = dayjs().format('YYYY-MM-DD HH:mm:ss');
+      const newList = state.list.map(item => 
         item.id === id 
-          ? { ...item, ...data, updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss') }
+          ? { ...item, ...data, updatedAt }
           : item
-      ),
-      currentActivity: state.currentActivity?.id === id
-        ? { ...state.currentActivity, ...data, updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss') }
-        : state.currentActivity,
-    }));
+      );
+      const newCurrentActivity = state.currentActivity?.id === id
+        ? { ...state.currentActivity, ...data, updatedAt }
+        : state.currentActivity;
+      
+      const newModifiedMap = new Map(state.allModifiedActivities);
+      const existingActivity = newModifiedMap.get(id) || state.list.find(item => item.id === id) || mockActivities.find(item => item.id === id) || mockCurrentActivity;
+      newModifiedMap.set(id, { ...existingActivity, ...data, updatedAt });
+      
+      return {
+        list: newList,
+        currentActivity: newCurrentActivity,
+        allModifiedActivities: newModifiedMap,
+      };
+    });
   },
 
   updateStatus: async (id, status) => {
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    set(state => ({
-      list: state.list.map(item => 
+    set(state => {
+      const updatedAt = dayjs().format('YYYY-MM-DD HH:mm:ss');
+      const newList = state.list.map(item => 
         item.id === id 
-          ? { ...item, status, updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss') }
+          ? { ...item, status, updatedAt }
           : item
-      ),
-    }));
+      );
+      
+      const newModifiedMap = new Map(state.allModifiedActivities);
+      const existingActivity = newModifiedMap.get(id) || state.list.find(item => item.id === id) || mockActivities.find(item => item.id === id) || mockCurrentActivity;
+      newModifiedMap.set(id, { ...existingActivity, status, updatedAt });
+      
+      return {
+        list: newList,
+        allModifiedActivities: newModifiedMap,
+      };
+    });
   },
 
   copyActivity: async (id) => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    let original = get().list.find(item => item.id === id);
+    const modifiedMap = get().allModifiedActivities;
+    let original = modifiedMap.get(id) || get().list.find(item => item.id === id);
     
     if (!original) {
       original = mockActivities.find(item => item.id === id);
@@ -197,10 +227,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
     };
     
-    set(state => ({
-      list: [newActivity, ...state.list],
-      total: state.total + 1,
-    }));
+    set(state => {
+      const newModifiedMap = new Map(state.allModifiedActivities);
+      newModifiedMap.set(newActivity.id, newActivity);
+      
+      return {
+        list: [newActivity, ...state.list],
+        total: state.total + 1,
+        allModifiedActivities: newModifiedMap,
+      };
+    });
     
     return newActivity.id;
   },
@@ -208,14 +244,26 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   batchUpdateStatus: async (ids, status) => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    set(state => ({
-      list: state.list.map(item => 
+    set(state => {
+      const updatedAt = dayjs().format('YYYY-MM-DD HH:mm:ss');
+      const newList = state.list.map(item => 
         ids.includes(item.id)
-          ? { ...item, status, updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss') }
+          ? { ...item, status, updatedAt }
           : item
-      ),
-      selectedIds: [],
-    }));
+      );
+      
+      const newModifiedMap = new Map(state.allModifiedActivities);
+      ids.forEach(id => {
+        const existingActivity = newModifiedMap.get(id) || state.list.find(item => item.id === id) || mockActivities.find(item => item.id === id) || mockCurrentActivity;
+        newModifiedMap.set(id, { ...existingActivity, status, updatedAt });
+      });
+      
+      return {
+        list: newList,
+        selectedIds: [],
+        allModifiedActivities: newModifiedMap,
+      };
+    });
   },
 
   setFilter: (filter) => {
