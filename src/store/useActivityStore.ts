@@ -42,7 +42,28 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const currentFilter = { ...get().filter, ...filter };
-    let data = [...mockActivities];
+    const currentList = get().list;
+    
+    const mockMap = new Map(mockActivities.map(item => [item.id, item]));
+    const storeMap = new Map(currentList.map(item => [item.id, item]));
+    
+    const allData: Activity[] = [];
+    
+    mockMap.forEach((item, id) => {
+      if (storeMap.has(id)) {
+        allData.push(storeMap.get(id)!);
+      } else {
+        allData.push(item);
+      }
+    });
+    
+    storeMap.forEach((item, id) => {
+      if (!mockMap.has(id)) {
+        allData.push(item);
+      }
+    });
+    
+    let data = allData;
     
     if (currentFilter.keyword) {
       const keyword = currentFilter.keyword.toLowerCase();
@@ -68,6 +89,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       );
     }
     
+    data.sort((a, b) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf());
+    
     const total = data.length;
     const page = currentFilter.page || 1;
     const pageSize = currentFilter.pageSize || 10;
@@ -81,7 +104,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     set({ loading: true });
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    let activity = mockActivities.find(item => item.id === id) || mockCurrentActivity;
+    let activity = get().list.find(item => item.id === id);
+    
+    if (!activity) {
+      activity = mockActivities.find(item => item.id === id);
+    }
+    
+    if (!activity) {
+      activity = mockCurrentActivity;
+    }
+    
     set({ currentActivity: activity, loading: false });
   },
 
@@ -146,7 +178,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   copyActivity: async (id) => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    const original = get().list.find(item => item.id === id) || mockCurrentActivity;
+    let original = get().list.find(item => item.id === id);
+    
+    if (!original) {
+      original = mockActivities.find(item => item.id === id);
+    }
+    
+    if (!original) {
+      original = mockCurrentActivity;
+    }
+    
     const newActivity: Activity = {
       ...original,
       id: generateId(),

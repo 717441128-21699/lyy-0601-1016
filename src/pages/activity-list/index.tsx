@@ -139,8 +139,17 @@ const ActivityListPage = () => {
 
   const handleCopy = async (id: string) => {
     const newId = await copyActivity(id);
-    message.success('活动复制成功');
-    navigate(`/activity/edit/${newId}`);
+    message.success('活动复制成功，新活动状态为草稿');
+    fetchList();
+    Modal.confirm({
+      title: '复制成功',
+      content: '活动已复制成功，是否立即编辑新活动？',
+      okText: '立即编辑',
+      cancelText: '留在列表',
+      onOk: () => {
+        navigate(`/activity/edit/${newId}`);
+      },
+    });
   };
 
   const handleDelete = (id: string) => {

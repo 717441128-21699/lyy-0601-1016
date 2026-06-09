@@ -28,11 +28,11 @@ const router = createBrowserRouter([
         element: <ActivityEditPage />,
       },
       {
-        path: '/activity/products/:id',
+        path: '/activity/:id/products',
         element: <ProductSelectPage />,
       },
       {
-        path: '/activity/stores/:id',
+        path: '/activity/:id/stores',
         element: <StoreScopePage />,
       },
       {

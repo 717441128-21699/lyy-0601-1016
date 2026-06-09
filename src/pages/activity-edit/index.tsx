@@ -47,6 +47,24 @@ const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 const { Step } = Steps;
 
+const formatTimeSafe = (value: any): string => {
+  if (!value) return '';
+  let timeStr = String(value).replace(/\"/g, '');
+  if (typeof timeStr === 'string') {
+    return dayjs(timeStr).format('YYYY-MM-DD HH:mm:ss');
+  }
+  if (typeof value.format === 'function') {
+    return value.format('YYYY-MM-DD HH:mm:ss');
+  }
+  return dayjs(timeStr).format('YYYY-MM-DD HH:mm:ss');
+};
+
+const parseTimeSafe = (value: any): any => {
+  if (!value) return null;
+  let timeStr = String(value).replace(/\"/g, '');
+  return dayjs(timeStr);
+};
+
 type FormValues = {
   name: string;
   description: string;
@@ -85,15 +103,31 @@ const ActivityEditPage = () => {
 
   useEffect(() => {
     if (currentActivity && isEdit) {
-      form.setFieldsValue({
+      const formValues: any = {
         name: currentActivity.name,
         description: currentActivity.description,
         type: currentActivity.type,
-        startTime: dayjs(currentActivity.startTime),
-        endTime: dayjs(currentActivity.endTime),
+        startTime: parseTimeSafe(currentActivity.startTime),
+        endTime: parseTimeSafe(currentActivity.endTime),
         priority: currentActivity.priority,
         memberLevels: currentActivity.memberLevels,
-      });
+      };
+      
+      if (currentActivity.type === 'discount' && !Array.isArray(currentActivity.rules)) {
+        formValues.discountRule = {
+          discount: (currentActivity.rules as any).discount || 9,
+        };
+      }
+      
+      if (currentActivity.type === 'gift' && !Array.isArray(currentActivity.rules)) {
+        formValues.giftRule = {
+          threshold: (currentActivity.rules as any).threshold || 200,
+          giftProductName: (currentActivity.rules as any).giftProductName || '精美礼品',
+          giftQuantity: (currentActivity.rules as any).giftQuantity || 1,
+        };
+      }
+      
+      form.setFieldsValue(formValues);
       setActivityType(currentActivity.type);
       
       if (currentActivity.type === 'full_reduction' && Array.isArray(currentActivity.rules)) {
@@ -151,8 +185,8 @@ const ActivityEditPage = () => {
       
       const activityData: Partial<Activity> = {
         ...values,
-        startTime: values.startTime.format('YYYY-MM-DD HH:mm:ss'),
-        endTime: values.endTime.format('YYYY-MM-DD HH:mm:ss'),
+        startTime: formatTimeSafe(values.startTime),
+        endTime: formatTimeSafe(values.endTime),
         rules,
         status: 'draft',
       };
@@ -177,15 +211,24 @@ const ActivityEditPage = () => {
       
       const activityData: Partial<Activity> = {
         ...values,
-        startTime: values.startTime.format('YYYY-MM-DD HH:mm:ss'),
-        endTime: values.endTime.format('YYYY-MM-DD HH:mm:ss'),
+        startTime: formatTimeSafe(values.startTime),
+        endTime: formatTimeSafe(values.endTime),
         rules,
+        status: 'draft',
       };
       
       setFormData(activityData);
       
       if (currentStep === 0) {
-        setCurrentStep(1);
+        if (isEdit && id) {
+          await updateActivity(id, activityData);
+          message.success('已保存，进入下一步');
+          setCurrentStep(1);
+        } else {
+          const newId = await createActivity(activityData);
+          message.success('已保存，进入下一步');
+          navigate(`/activity/edit/${newId}`, { replace: true });
+        }
       }
     } catch (error) {
       console.error('Validation failed:', error);
@@ -196,20 +239,77 @@ const ActivityEditPage = () => {
     setCurrentStep(0);
   };
 
-  const handleGoToProducts = () => {
+  const handleGoToProducts = async () => {
     if (isEdit && id) {
-      navigate(`/activity/${id}/products`);
+      try {
+        const values = await form.validateFields();
+        const rules = getActivityRules(values);
+        const activityData: Partial<Activity> = {
+          ...values,
+          startTime: formatTimeSafe(values.startTime),
+          endTime: formatTimeSafe(values.endTime),
+          rules,
+        };
+        await updateActivity(id, activityData);
+        navigate(`/activity/${id}/products`);
+      } catch (error) {
+        navigate(`/activity/${id}/products`);
+      }
     } else {
-      handleSaveDraft();
-      if (currentActivity) {
-        navigate(`/activity/${currentActivity.id}/products`);
+      const newId = await handleSaveDraftAndReturnId();
+      if (newId) {
+        navigate(`/activity/${newId}/products`);
       }
     }
   };
 
-  const handleGoToStores = () => {
+  const handleGoToStores = async () => {
     if (isEdit && id) {
-      navigate(`/activity/${id}/stores`);
+      try {
+        const values = await form.validateFields();
+        const rules = getActivityRules(values);
+        const activityData: Partial<Activity> = {
+          ...values,
+          startTime: formatTimeSafe(values.startTime),
+          endTime: formatTimeSafe(values.endTime),
+          rules,
+        };
+        await updateActivity(id, activityData);
+        navigate(`/activity/${id}/stores`);
+      } catch (error) {
+        navigate(`/activity/${id}/stores`);
+      }
+    } else {
+      const newId = await handleSaveDraftAndReturnId();
+      if (newId) {
+        navigate(`/activity/${newId}/stores`);
+      }
+    }
+  };
+
+  const handleSaveDraftAndReturnId = async (): Promise<string | null> => {
+    try {
+      const values = await form.validateFields();
+      const rules = getActivityRules(values);
+      
+      const activityData: Partial<Activity> = {
+        ...values,
+        startTime: formatTimeSafe(values.startTime),
+        endTime: formatTimeSafe(values.endTime),
+        rules,
+        status: 'draft',
+      };
+
+      if (isEdit && id) {
+        await updateActivity(id, activityData);
+        return id;
+      } else {
+        const newId = await createActivity(activityData);
+        return newId;
+      }
+    } catch (error) {
+      console.error('Validation failed:', error);
+      return null;
     }
   };
 
@@ -219,8 +319,14 @@ const ActivityEditPage = () => {
 
   const confirmSubmitApproval = async () => {
     try {
+      const values = await form.validateFields();
+      const rules = getActivityRules(values);
+      
       const activityData: Partial<Activity> = {
-        ...formData,
+        ...values,
+        startTime: formatTimeSafe(values.startTime),
+        endTime: formatTimeSafe(values.endTime),
+        rules,
         status: 'pending',
         approvalRemark,
       };
